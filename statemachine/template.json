@@ -1,0 +1,18 @@
+{
+    "Comment": "Step Functions state machine generator for Subway Monitor",
+    "StartAt": "Retriever",
+    "States": {
+        "Retriever": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:{RETRIEVER_FUNCTION}",
+            "Next": "Sender",
+            "ResultPath": "$.payload"
+        },
+        "Sender": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:{SENDER_FUNCTION}",
+            "End": true,
+            "OutputPath": null
+        }
+    }
+}

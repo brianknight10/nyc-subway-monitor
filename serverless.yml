@@ -1,0 +1,56 @@
+service: subway-monitor
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: '${opt:stage, self:custom.defaultStage}'
+  deploymentBucket: '${ssm:/serverless/global/DEPLOYMENT_BUCKET}'
+  region: us-east-1
+custom:
+  defaultStage: development
+package:
+  include:
+    - lambda/**
+functions:
+  retriever:
+    handler: lambda/retriever.handler
+    environment:
+      statusUrl: 'http://web.mta.info/status/serviceStatus.txt'
+    timeout: 30
+  sender:
+    handler: lambda/sender.handler
+    environment:
+      influxHost: xxxx.xxx.xx
+      influxDb: xxxxxxx
+    vpc:
+      securityGroupIds:
+        - sg-xxxxxxxx
+      subnetIds:
+        - subnet-xxxxxxxx
+resources:
+  Resources:
+    SubwayMonitorStateMachineRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/service-role/AWSLambdaRole'
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: ''
+              Effect: Allow
+              Principal:
+                Service: states.us-east-1.amazonaws.com
+              Action: 'sts:AssumeRole'
+    SubwayMonitorStateMachine:
+      Type: 'AWS::StepFunctions::StateMachine'
+      Properties:
+        DefinitionString: '{"Comment":"Step Functions state machine generator for Subway Monitor","StartAt":"Retriever","States":{"Retriever":{"Type":"Task","Resource":"arn:aws:lambda:us-east-1:116278940861:function:subway-monitor-production-retriever","Next":"Sender","ResultPath":"$.payload"},"Sender":{"Type":"Task","Resource":"arn:aws:lambda:us-east-1:116278940861:function:subway-monitor-production-sender","End":true,"OutputPath":null}}}'
+        RoleArn:
+          'Fn::GetAtt':
+            - SubwayMonitorStateMachineRole
+            - Arn
+  Outputs:
+    StateMachine:
+      Description: StateMachine ARN
+      Value:
+        Ref: SubwayMonitorStateMachine
